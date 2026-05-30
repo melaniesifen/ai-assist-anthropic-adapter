@@ -51,8 +51,20 @@ The client wrapper, not this adapter contract, owns SDK initialization, HTTP tim
 
 This repo is an internal provider-adapter service boundary. Orchestration owns workflow decisions, prompt assembly, context consent enforcement, and proposed-action creation. This adapter owns only Anthropic-specific provider translation and returns no raw prompt or output content in logs.
 
-## Commands
+## Testing And Coverage
+
+Run the unit tests with either command:
 
 ```sh
 node --test
+npm test
 ```
+
+View the built-in coverage report in the terminal:
+
+```sh
+node --experimental-test-coverage --test
+npm run coverage
+```
+
+The coverage command uses Node's built-in test runner and prints a text report. If later tooling writes HTML, LCOV, TAP, JUnit, or build output, those generated paths are ignored by `.gitignore`.

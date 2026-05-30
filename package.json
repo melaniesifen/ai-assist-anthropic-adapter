@@ -6,7 +6,8 @@
   "description": "Dependency-light Anthropic provider adapter bootstrap for AI Assist Platform.",
   "main": "./src/index.js",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "coverage": "node --experimental-test-coverage --test"
   },
   "engines": {
     "node": ">=20"
