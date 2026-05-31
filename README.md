@@ -51,6 +51,10 @@ The client wrapper, not this adapter contract, owns SDK initialization, HTTP tim
 
 This repo is an internal provider-adapter service boundary. Orchestration owns workflow decisions, prompt assembly, context consent enforcement, and proposed-action creation. This adapter owns only Anthropic-specific provider translation and returns no raw prompt or output content in logs.
 
+## Task Breakdown
+
+Implementation tasks are tracked in [TASKS.md](TASKS.md). Update the checkboxes there in the same change that implements or verifies a task.
+
 ## Testing And Coverage
 
 Run the unit tests with either command:

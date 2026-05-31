@@ -22,3 +22,16 @@
 ## Review Notes
 
 Before committing, review for prompt/key leakage, provider-specific details leaking into shared contracts, and ambiguous provider responses failing open.
+
+## Commit Messages
+
+All commits in this repo must use this format:
+
+```text
+docs/feat/fix/(or another appropriate type): title of change
+
+problem: <description of problem>
+solution: <description of solution>
+impact: <impact of this change>
+reference: <reference to this change in the docs if applicable>
+```
