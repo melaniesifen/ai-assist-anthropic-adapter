@@ -20,6 +20,8 @@ Relevant design sources: provider adapter section in `../ai-assist-architecture/
 ## Architecture Tasks
 
 - [ ] REPO-001: Decide final language, runtime, package manager, and package/module layout for this adapter; distinguish current Node.js ESM bootstrap from production shape.
+- [x] REPO-002: Migrate this adapter from the temporary Node.js ESM bootstrap to Python, preserving or intentionally superseding current validation, generation, streaming, final stream metadata, usage normalization, error normalization, safe logging, and tests.
+- Migration gate: Do not continue broad new Anthropic adapter feature work until the Python migration is completed or explicitly deferred; REPO-001 remains open for package manager and package/module layout decisions.
 - [ ] PROVIDER-001: Align the local adapter contract with the shared provider interface from `ai-assist-contracts` once published.
 - [x] PROVIDER-001: Support local injected-client methods for credential validation, generate response, stream response, usage metadata, and normalized provider errors.
 - [x] PROVIDER-001: Keep prompt strategy, workflow selection, context retrieval, `SessionSecrets` storage, proposed actions, and session transport outside this repo.

@@ -1,13 +1,13 @@
 # ai-assist-anthropic-adapter
 
-Anthropic provider adapter bootstrap for the AI Assist Platform.
+Anthropic provider adapter for the AI Assist Platform.
 
 This package owns Anthropic-specific credential validation, Claude generation request mapping, streaming event normalization, usage normalization, capability metadata, and safe provider error mapping. It does not own provider key storage, prompt construction, context retrieval, proposed actions, document mutation, or session transport.
 
 ## Current Boundary
 
-- Runtime: dependency-light Node.js ESM.
-- Tests: built-in `node:test`.
+- Runtime: dependency-light Python package.
+- Tests: stdlib `unittest`.
 - Network: no direct provider calls in this bootstrap.
 - Provider access: injected client only.
 - Logging: metadata allow-list only; raw prompts, message content, provider keys, tokens, model outputs, and raw provider errors are rejected from adapter logs.
@@ -16,24 +16,26 @@ The orchestration service should pass a decrypted short-lived session secret to 
 
 ## Public Shape
 
-```js
-import { createAnthropicAdapter } from "./src/index.js";
+```python
+from ai_assist_anthropic_adapter import create_anthropic_adapter
 
-const adapter = createAnthropicAdapter({
-  client: {
-    async validateCredential(request) {},
-    async generate(request) {},
-    stream(request) {}
-  }
-});
+adapter = create_anthropic_adapter(client=client)
 ```
 
 Adapter methods:
 
-- `validateCredential({ credential, requestId, correlationId })`
-- `generate({ credential, model, messages, temperature, maxOutputTokens, requestId, correlationId })`
-- `stream({ credential, model, messages, temperature, maxOutputTokens, requestId, correlationId })`
-- `getCapabilities()`
+- `await validate_credential({ "credential": "...", "requestId": "...", "correlationId": "..." })`
+- `await generate({ "credential": "...", "model": "...", "messages": [...], "temperature": 0.2, "maxOutputTokens": 512 })`
+- `stream({ "credential": "...", "model": "...", "messages": [...] })`
+- `get_capabilities()`
+
+The injected client must provide:
+
+- `validate_credential(request)`
+- `generate(request)`
+- `stream(request)`
+
+The adapter accepts sync or async client results. `stream` may return a sync iterable or async iterable of raw Anthropic events.
 
 All provider responses are normalized to platform-facing shapes. Provider errors are mapped to stable categories and safe codes before being returned or logged.
 
@@ -41,7 +43,7 @@ All provider responses are normalized to platform-facing shapes. Provider errors
 
 A future production client can wrap the Anthropic SDK or a minimal HTTP client behind the injected interface:
 
-- `validateCredential` should make a low-cost server-side validation request and return metadata only.
+- `validate_credential` should make a low-cost server-side validation request and return metadata only.
 - `generate` should return raw Anthropic response metadata needed for normalization.
 - `stream` should return an async iterable of raw Anthropic stream events.
 
@@ -57,18 +59,10 @@ Implementation tasks are tracked in [TASKS.md](TASKS.md). Update the checkboxes 
 
 ## Testing And Coverage
 
-Run the unit tests with either command:
+Run the unit tests:
 
 ```sh
-node --test
-npm test
+PYTHONPATH=src python3 -m unittest discover -s tests
 ```
 
-View the built-in coverage report in the terminal:
-
-```sh
-node --experimental-test-coverage --test
-npm run coverage
-```
-
-The coverage command uses Node's built-in test runner and prints a text report. If later tooling writes HTML, LCOV, TAP, JUnit, or build output, those generated paths are ignored by `.gitignore`.
+No third-party test dependencies are required for the current package. If later tooling writes coverage, HTML, JUnit, or build output, those generated paths are ignored by `.gitignore`.
