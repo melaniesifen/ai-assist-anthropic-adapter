@@ -87,6 +87,8 @@ def _assert_no_forbidden_fields(value: Any, path: tuple[str, ...] = ()) -> None:
 
     for key, nested in value.items():
         next_path = (*path, key)
+        if next_path == ("tokenUsage",):
+            continue
         if any(pattern.search(key) for pattern in FORBIDDEN_FIELD_PATTERNS):
             raise TypeError(f"Forbidden log field: {'.'.join(next_path)}")
         _assert_no_forbidden_fields(nested, next_path)

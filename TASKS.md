@@ -45,6 +45,15 @@ Relevant design sources: provider adapter section in `../ai-assist-architecture/
 - [ ] E2E-005: Provide test hooks or fixtures for provider quota, rate-limit, timeout, expired-secret, and metadata-only logging scenarios.
 - [ ] E2E-005: Validate Anthropic outage, quota exhaustion, timeout, invalid model, invalid key, and provider rate-limit failure modes without raw prompt or key logging.
 
+## Milestone 5: Ask And Stream
+
+- [x] M5-T4.2: Verified Anthropic fake stream tests for deterministic deltas, final response, usage metadata, safe errors, and empty or unknown terminal stream behavior.
+- [x] M5-T4.3: Verified Anthropic provider-neutral stream output names and provider error categories used by contracts and orchestration.
+- [x] M5-T4.4: Verified Anthropic adapter logs metadata only, including default safe logger usage metadata, without raw prompts, model response bodies, provider keys, or secret material.
+- [x] M5-T4.5: Updated Anthropic adapter task tracking for M5-T4 evidence.
+- [x] M5-T4.6: Run Anthropic adapter tests and compile checks after review feedback is resolved.
+- [x] M5-T4.7: Write fresh review feedback for the current Anthropic adapter diff and resolve or document findings.
+
 ## Quality Tasks
 
 - [ ] Raise line coverage to at least 95%.

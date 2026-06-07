@@ -25,6 +25,7 @@ def validation_error(code: str, safe_message: str) -> dict[str, Any]:
         "category": ERROR_CATEGORIES["VALIDATION"],
         "code": code,
         "retryable": False,
+        "message": safe_message,
         "safeMessage": safe_message,
     }
 
@@ -35,6 +36,7 @@ def invalid_credential_error() -> dict[str, Any]:
         "category": ERROR_CATEGORIES["AUTHENTICATION"],
         "code": ERROR_CODES["INVALID_CREDENTIAL"],
         "retryable": False,
+        "message": "Provider credential is invalid or expired.",
         "safeMessage": "Provider credential is invalid or expired.",
     }
 
@@ -45,6 +47,7 @@ def client_configuration_error() -> dict[str, Any]:
         "category": ERROR_CATEGORIES["INTERNAL"],
         "code": ERROR_CODES["ADAPTER_CLIENT_INVALID"],
         "retryable": False,
+        "message": "Provider adapter client is not configured correctly.",
         "safeMessage": "Provider adapter client is not configured correctly.",
     }
 
@@ -85,6 +88,7 @@ def _normalized(category: str, code: str, retryable: bool, safe_message: str, st
         "category": category,
         "code": code,
         "retryable": retryable,
+        "message": safe_message,
         "safeMessage": safe_message,
         "providerStatusCode": status_code,
         "providerErrorSignal": provider_signal or None,

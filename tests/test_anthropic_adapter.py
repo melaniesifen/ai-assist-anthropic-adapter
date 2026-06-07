@@ -111,6 +111,24 @@ class AnthropicAdapterTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["error"]["code"], ERROR_CODES["PROVIDER_RATE_LIMITED"])
         self.assertEqual(result["error"]["safeMessage"], "Provider rate limit was reached.")
 
+    async def test_generate_succeeds_with_default_safe_logger_and_usage_metadata(self) -> None:
+        async def generate(_: dict) -> dict:
+            return {
+                "content": [{"type": "text", "text": "normalized answer"}],
+                "usage": {"input_tokens": 1, "output_tokens": 2},
+            }
+
+        adapter = create_anthropic_adapter(client=FakeClient(generate=generate))
+
+        result = await adapter.generate({
+            "credential": TEST_CREDENTIAL,
+            "model": TEST_MODEL,
+            "messages": TEST_MESSAGES,
+        })
+
+        self.assertIs(result["ok"], True)
+        self.assertEqual(result["usage"], {"inputTokens": 1, "outputTokens": 2, "totalTokens": 3})
+
     async def test_generate_rejects_malformed_messages_and_parameters_before_calling_injected_client(self) -> None:
         client = FakeClient()
         adapter = create_anthropic_adapter(client=client, logger=CaptureLogger())
@@ -163,18 +181,25 @@ class AnthropicAdapterTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(stream_events[0]["error"]["code"], ERROR_CODES["PROVIDER_VALIDATION_ERROR"])
 
     async def test_stream_normalizes_anthropic_delta_and_final_events(self) -> None:
+        logger = CaptureLogger()
+
         async def stream(_: dict):
             yield {"type": "content_block_delta", "delta": {"text": "hel"}}
             yield {"text": "lo"}
             yield {"type": "message_stop", "message": {"usage": {"input_tokens": 2, "output_tokens": 1}, "stop_reason": "end_turn"}}
 
-        adapter = create_anthropic_adapter(client=FakeClient(stream=stream), logger=CaptureLogger())
+        adapter = create_anthropic_adapter(client=FakeClient(stream=stream), logger=logger)
 
         events = [event async for event in adapter.stream({"credential": TEST_CREDENTIAL, "model": TEST_MODEL, "messages": TEST_MESSAGES})]
 
         self.assertEqual([event["type"] for event in events], ["assistant.delta", "assistant.delta", "assistant.final"])
         self.assertEqual(events[0]["delta"], "hel")
+        self.assertEqual(events[0]["provider"], PROVIDER)
+        self.assertEqual(events[0]["model"], TEST_MODEL)
+        self.assertEqual(events[2]["provider"], PROVIDER)
+        self.assertEqual(events[2]["model"], TEST_MODEL)
         self.assertEqual(events[2]["usage"], {"inputTokens": 2, "outputTokens": 1, "totalTokens": 3})
+        assert_no_forbidden_log_material(self, logger.entries)
 
     async def test_stream_preserves_anthropic_message_delta_final_metadata(self) -> None:
         async def stream(_: dict):
@@ -205,6 +230,51 @@ class AnthropicAdapterTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(events[-1]["finishReason"], "end_turn")
         self.assertEqual(events[-1]["usage"], {"inputTokens": 9, "outputTokens": 4, "totalTokens": 13})
 
+    async def test_stream_returns_safe_error_event_for_provider_failure(self) -> None:
+        logger = CaptureLogger()
+
+        async def stream(_: dict):
+            raise ProviderError(statusCode=503, type="api_error", message="raw provider message")
+            yield
+
+        adapter = create_anthropic_adapter(client=FakeClient(stream=stream), logger=logger)
+
+        events = [event async for event in adapter.stream({"credential": TEST_CREDENTIAL, "model": TEST_MODEL, "messages": TEST_MESSAGES})]
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["type"], "error")
+        self.assertEqual(events[0]["provider"], PROVIDER)
+        self.assertEqual(events[0]["model"], TEST_MODEL)
+        self.assertEqual(events[0]["error"]["category"], ERROR_CATEGORIES["DEPENDENCY"])
+        self.assertEqual(events[0]["error"]["code"], ERROR_CODES["PROVIDER_UNAVAILABLE"])
+        self.assertEqual(events[0]["error"]["message"], "Provider is temporarily unavailable.")
+        self.assertEqual(events[0]["error"]["dependencyStatus"], "failed")
+        self.assertEqual(set(events[0]["error"].keys()), {"category", "code", "message", "dependencyStatus"})
+        assert_no_forbidden_log_material(self, logger.entries)
+
+    async def test_stream_returns_error_when_provider_stream_has_no_terminal_event(self) -> None:
+        adapter = create_anthropic_adapter(client=FakeClient(stream=lambda _: iter(())), logger=CaptureLogger())
+
+        events = [event async for event in adapter.stream({"credential": TEST_CREDENTIAL, "model": TEST_MODEL, "messages": TEST_MESSAGES})]
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["type"], "error")
+        self.assertEqual(events[0]["error"]["category"], ERROR_CATEGORIES["DEPENDENCY"])
+        self.assertEqual(events[0]["error"]["code"], ERROR_CODES["UNKNOWN_PROVIDER_ERROR"])
+
+    async def test_stream_returns_error_when_provider_stream_events_are_unknown(self) -> None:
+        async def stream(_: dict):
+            yield {"type": "provider.event.without_delta_or_finish"}
+
+        adapter = create_anthropic_adapter(client=FakeClient(stream=stream), logger=CaptureLogger())
+
+        events = [event async for event in adapter.stream({"credential": TEST_CREDENTIAL, "model": TEST_MODEL, "messages": TEST_MESSAGES})]
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["type"], "error")
+        self.assertEqual(events[0]["error"]["category"], ERROR_CATEGORIES["DEPENDENCY"])
+        self.assertEqual(events[0]["error"]["code"], ERROR_CODES["UNKNOWN_PROVIDER_ERROR"])
+
 
 class ErrorMappingTest(unittest.TestCase):
     def test_maps_python_and_anthropic_error_shapes_to_stable_categories(self) -> None:
@@ -223,6 +293,26 @@ class ErrorMappingTest(unittest.TestCase):
         self.assertEqual(overloaded["providerErrorSignal"], "overloaded_error")
         self.assertEqual(context_too_large["code"], ERROR_CODES["CONTEXT_TOO_LARGE"])
 
+    def test_maps_provider_error_category_matrix_for_orchestration(self) -> None:
+        cases = [
+            (ProviderError(statusCode=401, type="authentication_error"), ERROR_CATEGORIES["AUTHENTICATION"], ERROR_CODES["INVALID_CREDENTIAL"], False),
+            (ProviderError(statusCode=429, type="insufficient_quota"), ERROR_CATEGORIES["PROVIDER_QUOTA"], ERROR_CODES["PROVIDER_QUOTA_EXCEEDED"], False),
+            (ProviderError(statusCode=429, type="rate_limit_error"), ERROR_CATEGORIES["RATE_LIMITED"], ERROR_CODES["PROVIDER_RATE_LIMITED"], True),
+            (ProviderError(statusCode=400, type="invalid_request_error"), ERROR_CATEGORIES["VALIDATION"], ERROR_CODES["PROVIDER_VALIDATION_ERROR"], False),
+            (ProviderError(statusCode=413, type="request_too_large"), ERROR_CATEGORIES["VALIDATION"], ERROR_CODES["CONTEXT_TOO_LARGE"], False),
+            (ProviderError(statusCode=529, type="overloaded_error"), ERROR_CATEGORIES["DEPENDENCY"], ERROR_CODES["PROVIDER_UNAVAILABLE"], True),
+            (ProviderError(type="content_policy_violation"), ERROR_CATEGORIES["POLICY"], ERROR_CODES["POLICY_BLOCKED"], False),
+            (ProviderError(type="unexpected_error"), ERROR_CATEGORIES["DEPENDENCY"], ERROR_CODES["UNKNOWN_PROVIDER_ERROR"], False),
+        ]
+
+        for error, category, code, retryable in cases:
+            with self.subTest(code=code):
+                mapped = map_provider_error(error)
+                self.assertEqual(mapped["category"], category)
+                self.assertEqual(mapped["code"], code)
+                self.assertIs(mapped["retryable"], retryable)
+                self.assertNotIn("raw provider", mapped["safeMessage"])
+
 
 class LoggingTest(unittest.TestCase):
     def test_sanitize_log_fields_rejects_secret_and_prompt_bearing_fields(self) -> None:
@@ -236,6 +326,15 @@ class LoggingTest(unittest.TestCase):
             "provider": PROVIDER,
         })
 
+    def test_sanitize_log_fields_allows_normalized_token_usage_metadata(self) -> None:
+        self.assertEqual(sanitize_log_fields({
+            "requestId": "req",
+            "tokenUsage": {"inputTokens": 1, "outputTokens": 2, "totalTokens": 3},
+        }), {
+            "requestId": "req",
+            "tokenUsage": {"inputTokens": 1, "outputTokens": 2, "totalTokens": 3},
+        })
+
 
 class FakeClient:
     def __init__(self, *, validate_credential=None, generate=None, stream=None) -> None:
@@ -244,6 +343,7 @@ class FakeClient:
         self._stream = stream
         self.validate_calls = 0
         self.generate_calls = 0
+        self.stream_calls = 0
 
     async def validate_credential(self, request: dict) -> dict:
         self.validate_calls += 1
@@ -258,6 +358,7 @@ class FakeClient:
         return {"content": [{"type": "text", "text": "ok"}], "usage": {}}
 
     def stream(self, request: dict):
+        self.stream_calls += 1
         if self._stream:
             return self._stream(request)
         return empty_async_iter()

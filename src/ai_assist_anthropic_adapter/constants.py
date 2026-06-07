@@ -3,13 +3,16 @@ from types import MappingProxyType
 PROVIDER = "anthropic"
 
 ERROR_CATEGORIES = MappingProxyType({
-    "AUTHENTICATION": "AUTHENTICATION",
-    "RATE_LIMITED": "RATE_LIMITED",
-    "VALIDATION": "VALIDATION",
-    "DEPENDENCY": "DEPENDENCY",
-    "PROVIDER_QUOTA": "PROVIDER_QUOTA",
-    "POLICY": "POLICY",
-    "INTERNAL": "INTERNAL",
+    "AUTHENTICATION": "authentication",
+    "AUTHORIZATION": "authorization",
+    "RATE_LIMITED": "rate_limited",
+    "VALIDATION": "invalid_request",
+    "DEPENDENCY": "unavailable",
+    "PROVIDER_QUOTA": "quota",
+    "POLICY": "content_filtered",
+    "MODEL_UNAVAILABLE": "model_unavailable",
+    "TIMEOUT": "timeout",
+    "INTERNAL": "internal",
 })
 
 ERROR_CODES = MappingProxyType({

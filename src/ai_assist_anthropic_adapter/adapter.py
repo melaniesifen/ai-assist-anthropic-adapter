@@ -89,13 +89,19 @@ class AnthropicAdapter:
         self.logger.info({**metadata, "dependencyStatus": "attempt"})
         try:
             final_metadata: dict[str, Any] = {}
+            terminal_seen = False
             stream_result = self.client.stream(_to_anthropic_request(request, stream=True))
             stream_iterable = await _maybe_await(stream_result)
             async for raw_event in _aiter(stream_iterable):
                 final_metadata = _update_final_metadata(final_metadata, raw_event)
                 normalized = _normalize_stream_event(raw_event, request["model"], final_metadata)
                 if normalized:
+                    terminal_seen = normalized["type"] in {STREAM_EVENT_TYPES["FINAL"], STREAM_EVENT_TYPES["ERROR"]}
                     yield normalized
+            if not terminal_seen:
+                normalized_error = map_provider_error(None)
+                self.logger.warn({**metadata, "errorCategory": normalized_error["category"], "errorCode": normalized_error["code"]})
+                yield _stream_error_event(request["model"], normalized_error)
         except Exception as exc:
             normalized_error = map_provider_error(exc)
             self.logger.warn({**metadata, "errorCategory": normalized_error["category"], "errorCode": normalized_error["code"]})
@@ -324,7 +330,17 @@ def _stream_error_event(model: Any, error: dict[str, Any]) -> dict[str, Any]:
         "type": STREAM_EVENT_TYPES["ERROR"],
         "provider": PROVIDER,
         "model": model,
-        "error": error,
+        "error": _provider_contract_error(error),
+    }
+
+
+def _provider_contract_error(error: dict[str, Any]) -> dict[str, Any]:
+    raw = error if isinstance(error, dict) else {}
+    return {
+        "category": raw.get("category") or "unavailable",
+        "code": raw.get("code") or ERROR_CODES["UNKNOWN_PROVIDER_ERROR"],
+        "message": raw.get("message") or raw.get("safeMessage") or "Provider request failed.",
+        "dependencyStatus": raw.get("dependencyStatus") or "failed",
     }
 
 
