@@ -18,6 +18,7 @@
 
 - Run tests with `PYTHONPATH=src python3 -m unittest discover -s tests`.
 - Use stdlib test tooling unless a later task adds repo-local dependencies.
+- Keep tests split by source responsibility where practical; put shared fakes, constants, and assertions in `tests/common.py`.
 
 ## Review Notes
 
