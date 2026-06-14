@@ -54,6 +54,16 @@ Relevant design sources: provider adapter section in `../ai-assist-architecture/
 - [x] M8-T4.5: Anthropic adapter matches the provider-access contract and can safely report deferred/unavailable status through metadata.
 - [x] M8-T4.7: Added provider-access tests for platform access, optional BYO, missing access, status metadata, and safe logs.
 
+## M9 Trusted-User MVP Evidence
+
+- [x] M9-T4: Anthropic adapter remains deployable behind the generic injected provider-access contract for platform-owned access, with no real Anthropic API use in tests.
+- [x] M9-T4: Platform-owned access fails closed when the provider secret reference is missing or blank; unsupported access sources and missing BYO credentials do not call the injected client.
+- [x] M9-T4: Optional BYO remains explicit and passes only the decrypted credential for the provider-call path.
+- [x] M9-T4: Anthropic auth, quota, rate-limit, timeout, validation, configuration, dependency, policy, context-size, and unknown provider failures map to stable safe error categories/codes.
+- [x] M9-T4: Stream tests cover successful deltas/final metadata plus empty or unknown terminal streams as safe error events.
+- [x] M9-T4: Safe logging tests verify metadata-only logs without raw prompts, model output, provider keys, or raw provider error text.
+- [x] M9-T4: Root `unittest discover` now exercises the repo test suite for the required pre-commit command shape.
+
 ## Milestone 5: Ask And Stream
 
 - [x] M5-T4.2: Verified Anthropic fake stream tests for deterministic deltas, final response, usage metadata, safe errors, and empty or unknown terminal stream behavior.

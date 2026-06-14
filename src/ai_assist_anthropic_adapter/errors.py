@@ -11,6 +11,7 @@ POLICY_CODES = frozenset({"content_policy_violation", "policy_violation", "safet
 CONTEXT_CODES = frozenset({"context_length_exceeded", "context_too_large", "request_too_large"})
 UNAVAILABLE_CODES = frozenset({"api_error", "overloaded_error"})
 TIMEOUT_CODES = frozenset({"timeout", "request_timeout", "rate_limit_timeout"})
+CONFIGURATION_CODES = frozenset({"configuration_error", "config_error", "provider_misconfigured", "missing_api_key"})
 UNAVAILABLE_STATUS_CODES = frozenset({408, 500, 502, 503, 504, 529})
 
 
@@ -74,10 +75,13 @@ def map_provider_error(error: Any) -> dict[str, Any]:
     if provider_signal in POLICY_CODES:
         return _normalized(ERROR_CATEGORIES["POLICY"], ERROR_CODES["POLICY_BLOCKED"], False, "Provider policy blocked the request.", status_code, provider_signal)
 
+    if provider_signal in CONFIGURATION_CODES:
+        return _normalized(ERROR_CATEGORIES["INTERNAL"], ERROR_CODES["ADAPTER_CLIENT_INVALID"], False, "Provider adapter client is not configured correctly.", status_code, provider_signal)
+
     if status_code == 400:
         return _normalized(ERROR_CATEGORIES["VALIDATION"], ERROR_CODES["PROVIDER_VALIDATION_ERROR"], False, "Provider rejected the request shape.", status_code, provider_signal)
 
-    if provider_signal in TIMEOUT_CODES:
+    if status_code == 408 or provider_signal in TIMEOUT_CODES:
         return _normalized(ERROR_CATEGORIES["TIMEOUT"], ERROR_CODES["PROVIDER_UNAVAILABLE"], True, "Provider is temporarily unavailable.", status_code, provider_signal)
 
     if status_code in UNAVAILABLE_STATUS_CODES or provider_signal in UNAVAILABLE_CODES:

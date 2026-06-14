@@ -64,6 +64,56 @@ class AnthropicProviderAccessTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(client.generate_calls, 0)
         self.assertEqual(result["error"]["code"], ERROR_CODES["MISSING_CREDENTIAL"])
 
+    async def test_generate_rejects_missing_platform_secret_reference_without_calling_client(self) -> None:
+        client = FakeClient()
+        logger = CaptureLogger()
+        adapter = create_anthropic_adapter(client=client, logger=logger)
+
+        result = await adapter.generate({
+            "providerAccess": {"source": "platform", "reference": "   "},
+            "model": TEST_MODEL,
+            "messages": TEST_MESSAGES,
+        })
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(client.generate_calls, 0)
+        self.assertEqual(result["error"]["code"], ERROR_CODES["MISSING_CREDENTIAL"])
+        self.assertEqual(result["error"]["safeMessage"], "Platform provider secret reference is required.")
+        assert_no_forbidden_log_material(self, logger.entries)
+
+    async def test_stream_rejects_missing_byo_secret_access_without_calling_client(self) -> None:
+        client = FakeClient()
+        adapter = create_anthropic_adapter(client=client, logger=CaptureLogger())
+
+        events = [
+            event
+            async for event in adapter.stream(
+                {
+                    "providerAccess": {"source": "byo", "secretRef": "secret_001"},
+                    "model": TEST_MODEL,
+                    "messages": TEST_MESSAGES,
+                }
+            )
+        ]
+
+        self.assertEqual(client.stream_calls, 0)
+        self.assertEqual(events[0]["type"], "error")
+        self.assertEqual(events[0]["error"]["code"], ERROR_CODES["MISSING_CREDENTIAL"])
+
+    async def test_generate_rejects_unsupported_provider_access_source_without_calling_client(self) -> None:
+        client = FakeClient()
+        adapter = create_anthropic_adapter(client=client, logger=CaptureLogger())
+
+        result = await adapter.generate({
+            "providerAccess": {"source": "ambient"},
+            "model": TEST_MODEL,
+            "messages": TEST_MESSAGES,
+        })
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(client.generate_calls, 0)
+        self.assertEqual(result["error"]["code"], ERROR_CODES["PROVIDER_VALIDATION_ERROR"])
+
     def test_provider_status_can_report_deferred_anthropic_support_safely(self) -> None:
         status = provider_status(
             status="deferred",

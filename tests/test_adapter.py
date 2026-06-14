@@ -114,6 +114,26 @@ class AnthropicAdapterTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["error"]["code"], ERROR_CODES["PROVIDER_RATE_LIMITED"])
         self.assertEqual(result["error"]["safeMessage"], "Provider rate limit was reached.")
 
+    async def test_generate_maps_provider_configuration_error_without_raw_error_leakage(self) -> None:
+        logger = CaptureLogger()
+
+        async def generate(_: dict) -> dict:
+            raise ProviderError(type="configuration_error", message="raw provider config references secret material")
+
+        adapter = create_anthropic_adapter(client=FakeClient(generate=generate), logger=logger)
+
+        result = await adapter.generate({
+            "providerAccess": {"source": "platform", "reference": "secret-ref:anthropic-default"},
+            "model": TEST_MODEL,
+            "messages": TEST_MESSAGES,
+        })
+
+        self.assertIs(result["ok"], False)
+        self.assertEqual(result["error"]["category"], ERROR_CATEGORIES["INTERNAL"])
+        self.assertEqual(result["error"]["code"], ERROR_CODES["ADAPTER_CLIENT_INVALID"])
+        self.assertNotIn("raw provider", result["error"]["safeMessage"])
+        assert_no_forbidden_log_material(self, logger.entries)
+
     async def test_generate_succeeds_with_default_safe_logger_and_usage_metadata(self) -> None:
         async def generate(_: dict) -> dict:
             return {
