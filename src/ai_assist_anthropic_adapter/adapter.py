@@ -13,6 +13,7 @@ from .errors import (
     validation_error,
 )
 from .logging import SafeLogger
+from .provider_access import provider_access_error, provider_access_from_request, to_client_access_fields
 from .usage import normalize_usage
 
 SUPPORTED_MESSAGE_ROLES = frozenset({"system", "user", "assistant"})
@@ -133,8 +134,9 @@ def _validate_credential_value(credential: Any) -> dict[str, Any] | None:
 
 
 def _validate_generate_request(request: dict[str, Any]) -> dict[str, Any] | None:
+    access_error = provider_access_error(provider_access_from_request(request))
     return (
-        _validate_credential_value(request.get("credential"))
+        access_error
         or _validate_model(request.get("model"))
         or _validate_messages(request.get("messages"))
         or _validate_generation_parameters(request)
@@ -200,9 +202,9 @@ def _build_log_metadata(operation: str, request: dict[str, Any]) -> dict[str, An
 
 
 def _to_anthropic_request(request: dict[str, Any], *, stream: bool) -> dict[str, Any]:
+    access = provider_access_from_request(request)
     return {
         "provider": PROVIDER,
-        "credential": request["credential"],
         "model": request["model"],
         "messages": request["messages"],
         "temperature": request.get("temperature"),
@@ -210,6 +212,7 @@ def _to_anthropic_request(request: dict[str, Any], *, stream: bool) -> dict[str,
         "stream": stream,
         "requestId": request.get("requestId"),
         "correlationId": request.get("correlationId"),
+        **to_client_access_fields(access),
     }
 
 

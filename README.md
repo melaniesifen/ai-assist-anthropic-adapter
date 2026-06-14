@@ -9,10 +9,15 @@ This package owns Anthropic-specific credential validation, Claude generation re
 - Runtime: dependency-light Python package.
 - Tests: stdlib `unittest`.
 - Network: no direct provider calls in this bootstrap.
-- Provider access: injected client only.
+- Provider access: injected client only. Platform-owned provider access is the
+  default when configured; BYO credentials are optional and advanced.
 - Logging: metadata allow-list only; raw prompts, message content, provider keys, tokens, model outputs, and raw provider errors are rejected from adapter logs.
 
-The orchestration service should pass a decrypted short-lived session secret to this adapter only for the duration of a provider call. The adapter never stores the credential and never returns it.
+The orchestration service should pass platform-owned provider access metadata by
+default. If BYO provider keys are enabled for a trusted user, orchestration may
+pass a decrypted short-lived session secret to this adapter only for the
+duration of a provider call. The adapter never stores the credential and never
+returns it.
 
 ## Public Shape
 
@@ -25,8 +30,8 @@ adapter = create_anthropic_adapter(client=client)
 Adapter methods:
 
 - `await validate_credential({ "credential": "...", "requestId": "...", "correlationId": "..." })`
-- `await generate({ "credential": "...", "model": "...", "messages": [...], "temperature": 0.2, "maxOutputTokens": 512 })`
-- `stream({ "credential": "...", "model": "...", "messages": [...] })`
+- `await generate({ "providerAccess": { "source": "platform", "reference": "..." }, "model": "...", "messages": [...], "temperature": 0.2, "maxOutputTokens": 512 })`
+- `stream({ "providerAccess": { "source": "platform", "reference": "..." }, "model": "...", "messages": [...] })`
 - `get_capabilities()`
 
 The injected client must provide:
@@ -38,6 +43,8 @@ The injected client must provide:
 The adapter accepts sync or async client results. `stream` may return a sync iterable or async iterable of raw Anthropic events.
 
 All provider responses are normalized to platform-facing shapes. Provider errors are mapped to stable categories and safe codes before being returned or logged.
+Existing BYO validation calls may still pass a `credential`, but that path is
+not required for the default trusted-user flow.
 
 ## Future SDK/HTTP Adapter
 

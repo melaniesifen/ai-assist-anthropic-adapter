@@ -32,6 +32,7 @@ class ErrorMappingTest(unittest.TestCase):
             (ProviderError(statusCode=400, type="invalid_request_error"), ERROR_CATEGORIES["VALIDATION"], ERROR_CODES["PROVIDER_VALIDATION_ERROR"], False),
             (ProviderError(statusCode=413, type="request_too_large"), ERROR_CATEGORIES["VALIDATION"], ERROR_CODES["CONTEXT_TOO_LARGE"], False),
             (ProviderError(statusCode=529, type="overloaded_error"), ERROR_CATEGORIES["DEPENDENCY"], ERROR_CODES["PROVIDER_UNAVAILABLE"], True),
+            (ProviderError(type="request_timeout"), ERROR_CATEGORIES["TIMEOUT"], ERROR_CODES["PROVIDER_UNAVAILABLE"], True),
             (ProviderError(type="content_policy_violation"), ERROR_CATEGORIES["POLICY"], ERROR_CODES["POLICY_BLOCKED"], False),
             (ProviderError(type="unexpected_error"), ERROR_CATEGORIES["DEPENDENCY"], ERROR_CODES["UNKNOWN_PROVIDER_ERROR"], False),
         ]

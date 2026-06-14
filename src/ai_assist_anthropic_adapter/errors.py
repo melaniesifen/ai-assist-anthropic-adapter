@@ -10,6 +10,7 @@ RATE_LIMIT_CODES = frozenset({"rate_limit_error"})
 POLICY_CODES = frozenset({"content_policy_violation", "policy_violation", "safety_violation"})
 CONTEXT_CODES = frozenset({"context_length_exceeded", "context_too_large", "request_too_large"})
 UNAVAILABLE_CODES = frozenset({"api_error", "overloaded_error"})
+TIMEOUT_CODES = frozenset({"timeout", "request_timeout", "rate_limit_timeout"})
 UNAVAILABLE_STATUS_CODES = frozenset({408, 500, 502, 503, 504, 529})
 
 
@@ -75,6 +76,9 @@ def map_provider_error(error: Any) -> dict[str, Any]:
 
     if status_code == 400:
         return _normalized(ERROR_CATEGORIES["VALIDATION"], ERROR_CODES["PROVIDER_VALIDATION_ERROR"], False, "Provider rejected the request shape.", status_code, provider_signal)
+
+    if provider_signal in TIMEOUT_CODES:
+        return _normalized(ERROR_CATEGORIES["TIMEOUT"], ERROR_CODES["PROVIDER_UNAVAILABLE"], True, "Provider is temporarily unavailable.", status_code, provider_signal)
 
     if status_code in UNAVAILABLE_STATUS_CODES or provider_signal in UNAVAILABLE_CODES:
         return _normalized(ERROR_CATEGORIES["DEPENDENCY"], ERROR_CODES["PROVIDER_UNAVAILABLE"], True, "Provider is temporarily unavailable.", status_code, provider_signal)

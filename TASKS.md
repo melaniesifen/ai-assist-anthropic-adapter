@@ -29,9 +29,10 @@ Relevant design sources: provider adapter section in `../ai-assist-architecture/
 - [ ] PROVIDER-001: Add integration tests against the published provider contract and an Anthropic-compatible fake for validation, generate, stream, usage, and normalized errors.
 - [ ] PROVIDER-003: Add a production Anthropic SDK or HTTP client wrapper behind the injected boundary.
 - [ ] PROVIDER-003: Document and implement Anthropic credential-validation behavior that is safe to rate-limit and retry only within documented bounds.
+- [x] PROVIDER-003: Support platform-owned provider access metadata as the default generation and stream path without requiring user-pasted credentials.
 - [x] PROVIDER-003: Normalize Anthropic stream deltas and final stream metadata into provider-neutral stream output in the Python adapter.
 - [x] PROVIDER-003: Return usage metadata without logging raw prompts, context, model responses, or provider keys.
-- [ ] PROVIDER-003: Normalize Anthropic quota, auth, model, timeout, and provider rate-limit failures to the shared error categories.
+- [x] PROVIDER-003: Normalize Anthropic quota, auth, model, timeout, and provider rate-limit failures to the shared error categories.
 - [ ] PROVIDER-004: Surface expired or missing `SessionSecrets` as re-enter-key provider errors without attempting provider calls.
 - [ ] PROVIDER-004: Return typed provider failures suitable for orchestration to emit through `SessionEvent` errors.
 - [ ] AUTH-005: Support safe backend provider-key validation through this adapter without storing raw keys or logging raw provider errors.
@@ -42,8 +43,16 @@ Relevant design sources: provider adapter section in `../ai-assist-architecture/
 
 - [ ] E2E-001: Provide testable Anthropic key-validation behavior for onboarding without raw key leakage in logs.
 - [ ] E2E-002: Provide testable Anthropic generate/stream behavior for the read/context/generate path.
-- [ ] E2E-005: Provide test hooks or fixtures for provider quota, rate-limit, timeout, expired-secret, and metadata-only logging scenarios.
+- [x] E2E-005: Provide test hooks or fixtures for provider quota, rate-limit, timeout, missing access, optional BYO, platform access, and metadata-only logging scenarios.
 - [ ] E2E-005: Validate Anthropic outage, quota exhaustion, timeout, invalid model, invalid key, and provider rate-limit failure modes without raw prompt or key logging.
+
+## M8 Provider Access Evidence
+
+- [x] M8-T4.1: Anthropic adapter accepts platform-owned provider access metadata for generation and streaming without user-pasted credentials.
+- [x] M8-T4.2: Anthropic provider status helper reports available, unavailable, misconfigured, quota-limited, optional BYO, and deferred states without secrets.
+- [x] M8-T4.3: BYO credential handling remains explicit and optional; missing provider access fails closed.
+- [x] M8-T4.5: Anthropic adapter matches the provider-access contract and can safely report deferred/unavailable status through metadata.
+- [x] M8-T4.7: Added provider-access tests for platform access, optional BYO, missing access, status metadata, and safe logs.
 
 ## Milestone 5: Ask And Stream
 
