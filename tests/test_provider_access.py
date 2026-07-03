@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from ai_assist_anthropic_adapter import ERROR_CODES, create_anthropic_adapter, provider_status
-from common import CaptureLogger, FakeClient, TEST_MESSAGES, TEST_MODEL, assert_no_forbidden_log_material
+from ai_assist_anthropic_adapter import ERROR_CATEGORIES, ERROR_CODES, create_anthropic_adapter, provider_status
+from common import CaptureLogger, FakeClient, ProviderError, TEST_MESSAGES, TEST_MODEL, assert_no_forbidden_log_material
 
 
 class AnthropicProviderAccessTest(unittest.IsolatedAsyncioTestCase):
@@ -113,6 +113,51 @@ class AnthropicProviderAccessTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(client.generate_calls, 0)
         self.assertEqual(result["error"]["code"], ERROR_CODES["PROVIDER_VALIDATION_ERROR"])
+
+    async def test_generate_maps_platform_secret_access_denial_without_secret_leakage(self) -> None:
+        logger = CaptureLogger()
+
+        async def generate(_: dict) -> dict:
+            raise ProviderError(statusCode=403, type="secret_access_denied", message="raw provider message")
+
+        adapter = create_anthropic_adapter(client=FakeClient(generate=generate), logger=logger)
+
+        result = await adapter.generate({
+            "providerAccess": {"source": "platform", "reference": "secret-ref:anthropic-default"},
+            "model": TEST_MODEL,
+            "messages": TEST_MESSAGES,
+        })
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["error"]["category"], ERROR_CATEGORIES["AUTHORIZATION"])
+        self.assertEqual(result["error"]["code"], ERROR_CODES["PROVIDER_ACCESS_DENIED"])
+        self.assertEqual(result["error"]["safeMessage"], "Provider access is not authorized.")
+        assert_no_forbidden_log_material(self, logger.entries)
+
+    async def test_stream_maps_platform_secret_access_unavailable_without_secret_leakage(self) -> None:
+        logger = CaptureLogger()
+
+        async def stream(_: dict):
+            raise ProviderError(statusCode=500, type="kms_decrypt_failed", message="raw provider message")
+            yield
+
+        adapter = create_anthropic_adapter(client=FakeClient(stream=stream), logger=logger)
+
+        events = [
+            event
+            async for event in adapter.stream({
+                "providerAccess": {"source": "platform", "reference": "secret-ref:anthropic-default"},
+                "model": TEST_MODEL,
+                "messages": TEST_MESSAGES,
+            })
+        ]
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["type"], "error")
+        self.assertEqual(events[0]["error"]["category"], ERROR_CATEGORIES["DEPENDENCY"])
+        self.assertEqual(events[0]["error"]["code"], ERROR_CODES["PROVIDER_ACCESS_UNAVAILABLE"])
+        self.assertEqual(events[0]["error"]["message"], "Provider access is temporarily unavailable.")
+        assert_no_forbidden_log_material(self, logger.entries)
 
     def test_provider_status_can_report_deferred_anthropic_support_safely(self) -> None:
         status = provider_status(

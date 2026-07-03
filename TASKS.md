@@ -59,7 +59,7 @@ Relevant design sources: provider adapter section in `../ai-assist-architecture/
 - [x] M9-T4: Anthropic adapter remains deployable behind the generic injected provider-access contract for platform-owned access, with no real Anthropic API use in tests.
 - [x] M9-T4: Platform-owned access fails closed when the provider secret reference is missing or blank; unsupported access sources and missing BYO credentials do not call the injected client.
 - [x] M9-T4: Optional BYO remains explicit and passes only the decrypted credential for the provider-call path.
-- [x] M9-T4: Anthropic auth, quota, rate-limit, timeout, validation, configuration, dependency, policy, context-size, and unknown provider failures map to stable safe error categories/codes.
+- [x] M9-T4: Anthropic auth, quota, rate-limit, timeout, validation, configuration, platform secret access-denial/unavailability, dependency, policy, context-size, and unknown provider failures map to stable safe error categories/codes.
 - [x] M9-T4: Stream tests cover successful deltas/final metadata plus empty or unknown terminal streams as safe error events.
 - [x] M9-T4: Safe logging tests verify metadata-only logs without raw prompts, model output, provider keys, or raw provider error text.
 - [x] M9-T4: Root `unittest discover` now exercises the repo test suite for the required pre-commit command shape.
